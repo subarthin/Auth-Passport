@@ -5,7 +5,9 @@ const bodyParser=require("body-parser");
 const ejs=require('ejs');
 const mongoose=require("mongoose");
 const encrypt=require("mongoose-encryption");
-const { gunzip } = require("zlib");
+const bcrypt=require('bcrypt');
+const saltrounds=10;
+
 const port=3000;
 const app=express();
 app.set('view engine', 'ejs');
@@ -39,26 +41,49 @@ app.get("/register",function(req,res){
 });
 
 app.post("/register",function(req,res){
-    const uitem=new User({
-    email:req.body.username,
-    password:req.body.password
-    })
-    uitem.save().then(function(data){
-        res.render("secrets");
-    }).catch(function(err){
-        console.log("err");
-    });    
+    bcrypt.hash(req.body.password,saltrounds).then(function(err,hash){
+         const uitem=new User({
+            email:req.body.username,
+            password:hash
+            }).save().then(function(data){
+            res.render("secrets");
+            }).catch(function(err){
+                console.log("err");
+    });
+})      
 });
 
-app.post("/login",function(req,res){
-    User.findOne({email:req.body.username}).then(function(data){
-        if(data.password===req.body.password){
+app.post("/login", function(req, res) {
+    User.findOne({ email: req.body.username })
+      .then(function(data) {
+        if (!data) {
+          // User doesn't exist
+          res.status(401).send("Invalid username or password");
+          return;
+        }
+  
+        bcrypt.compare(req.body.password, data.password, function(err, result) {
+          if (err) {
+            console.log(err);
+            res.status(500).send("An error occurred");
+            return;
+          }
+  
+          if (result === true) {
             res.render("secrets");
-        } 
-    }).catch(function(data){
-        console.log("User not found");
-    })
-});
+          } else {
+            // Password doesn't match
+            res.status(401).send("Invalid username or password");
+          }
+        });
+      })
+      .catch(function(err) {
+        console.log(err);
+        res.status(500).send("An error occurred");
+      });
+  });
+  
+
 
 
 app.listen(port,()=>{
