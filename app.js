@@ -18,7 +18,11 @@ const uSchema=mongoose.Schema({
     password:String
 });
 
-const User=mongoose.model("User",uSchema);
+const secret="heloman.";  //key to encrypt
+uSchema.plugin(encrypt,{secret:secret,encryptedFields:["password"]});
+
+
+const User=new mongoose.model("User",uSchema);
 
 
 app.get("/",function(req,res){
@@ -49,7 +53,7 @@ app.post("/login",function(req,res){
     User.findOne({email:req.body.username}).then(function(data){
         if(data.password===req.body.password){
             res.render("secrets");
-        }
+        } 
     }).catch(function(data){
         console.log("User not found");
     })
