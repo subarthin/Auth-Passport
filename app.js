@@ -58,42 +58,50 @@ app.get("/register",function(req,res){
     res.render("register");
 });
 
+app.get("/logout",function(req,res){
+  req.logout(function(err) {
+    if (err) { return next(err); }
+  });
+  res.redirect("/");
+});
+
+app.get("/secrets",function(req,res){
+  if(req.isAuthenticated()){
+    res.render("secrets");
+  }
+  else{
+    res.redirect("/login");
+  }
+})
+
 app.post("/register",function(req,res){
-    bcrypt.hash(req.body.password,saltrounds).then(function(err,hash){
-         const uitem=new User({
-            email:req.body.username,
-            password:hash
-            }).save().then(function(data){
-            res.render("secrets");
-            }).catch(function(err){
-                console.log("err");
-    });
-})      
+    User.register({username:req.body.username},req.body.password).then(function(user,err){
+     if(user){
+        passport.authenticate("local")(req,res,function(){
+          res.redirect("secrets");
+        })
+      }
+      else{
+        console.log(err);
+      }
+    })  
 });
 
 app.post("/login", function(req, res) {
-    User.findOne({ email: req.body.username })
-      .then(function(data) {
-        if (!data) {
-          // User doesn't exist
-          res.status(401).send("Invalid username or password");
-          return;
-        }
-  
-        bcrypt.compare(req.body.password, data.password, function(err, result) {
-  
-          if (result === true) {
-            res.render("secrets");
-          } else {
-            // Password doesn't match
-            res.status(401).send("Invalid username or password");
-          }
-        });
-      })
-      .catch(function(err) {
+    const user =new User({
+      username:req.body.username,
+      password:req.body.password
+    });
+    
+    req.login(user,function(err){
+      if(err){
         console.log(err);
-        res.status(500).send("An error occurred");
-      });
+      } else{
+        passport.authenticate("local")(req,res,function(){
+          res.redirect("secrets");
+        })
+      }
+    })
   });
   
 
