@@ -7,10 +7,7 @@ const mongoose=require("mongoose");
 const session=require('express-session');
 const passport=require('passport');
 const passportLocalMongoose=require('passport-local-mongoose');
-// const encrypt=require("mongoose-encryption");
 const findOrCreate=require('mongoose-findorcreate');
-// const bcrypt=require('bcrypt');
-// const saltrounds=10;
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
 
@@ -35,7 +32,9 @@ mongoose.connect("mongodb://0.0.0.0:27017/secretsDB",{useNewUrlParser:true});
 
 const uSchema=mongoose.Schema({
     email:String,   
-    password:String
+    password:String,
+    googleId:String,
+    secret:String
 });
 
 
@@ -46,8 +45,15 @@ const User=new mongoose.model("User",uSchema);
 
 passport.use(User.createStrategy());
 
-passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.deserializeUser());
+passport.serializeUser(function(user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(function(id, done) {
+  User.findById(id).then( function(err, user) {
+    done(err, user);
+  });
+});
 
 passport.use(new GoogleStrategy({
   clientID: process.env.CLIENT_ID,
@@ -56,6 +62,7 @@ passport.use(new GoogleStrategy({
   userProfileURL:"https://www.googleapis.com/oauth2/v3/userinfo"
 },
 function(accessToken, refreshToken, profile, cb) {
+  console.log(profile);
   User.findOrCreate({ googleId: profile.id }, function (err, user) {
     return cb(err, user);
   });
@@ -76,11 +83,25 @@ app.get('/auth/google/secrets',
   function(req, res) {
     // Successful authentication, redirect home.
     res.redirect("/secrets");
-  });
+});
+
+app.get("/submit",function(req,res){
+  if(req.isAuthenticated()){
+    res.render("secrets");
+  }
+  else{
+    res.redirect("/login");
+  }
+})
 
 app.get("/login",function(req,res){
     res.render("login");
 });
+
+app.post("/submit",function(req,res){
+  const subsecret=req.body.secret;
+  console.log(req.user);
+})
 
 app.get("/register",function(req,res){
     res.render("register");
@@ -126,7 +147,7 @@ app.post("/login", function(req, res) {
         console.log(err);
       } else{
         passport.authenticate("local")(req,res,function(){
-          res.redirect("secrets");
+          res.redirect("/secrets");
         })
       }
     })
